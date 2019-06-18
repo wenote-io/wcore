@@ -21,6 +21,7 @@ type User struct {
 // WNote moudle
 type WNote struct {
 	ID         int    `db:"id"`
+	WID        string `db:"w_id"`
 	WMood      int    `db:"w_mood"`
 	WDesc      string `db:"w_desc"`
 	WAction    int    `db:"w_action"`
@@ -68,6 +69,7 @@ func CreateUser(user User) error {
 		return err
 	}
 	tx.Commit()
+	return nil
 }
 
 // QueryUserByWID id
@@ -90,10 +92,46 @@ func CreateNote(note *WNote) error {
 			tx.Rollback()
 		}
 	}()
-	res := tx.MustExec(CreateNoteSQL, note.WMood, note.WDesc, note.WAction, note.CreateTime)
+	res := tx.MustExec(CreateNoteSQL, note.WID, note.WMood, note.WDesc, note.WAction, note.CreateTime)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
 		log.Printf("CreateNote err:%s row:%d", err.Error(), row)
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// DelNote update user
+func DelNote(note *WNote) error {
+	tx := db.MustBegin()
+	defer func() {
+		if err := recover(); err != nil {
+			tx.Rollback()
+		}
+	}()
+	res := tx.MustExec(DELNoteSQL, note.DeleteTime, note.WID)
+	if row, err := res.RowsAffected(); err != nil || row == 0 {
+		tx.Rollback()
+		log.Printf("DelNote:%s row:%d", err.Error(), row)
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// UpdateNote update user
+func UpdateNote(note *WNote) error {
+	tx := db.MustBegin()
+	defer func() {
+		if err := recover(); err != nil {
+			tx.Rollback()
+		}
+	}()
+	res := tx.MustExec(UpdateNoteSQL, note.WID, note.WMood, note.WDesc, note.WAction, note.UpdateTime)
+	if row, err := res.RowsAffected(); err != nil || row == 0 {
+		tx.Rollback()
+		log.Printf("UpdateNote:%s row:%d", err.Error(), row)
 		return err
 	}
 	tx.Commit()
@@ -113,9 +151,9 @@ func QueryNoteTimeByUserIDAndTimeRange(wID string, start, end int64) (times []in
 }
 
 // QueryUserActionStatValByTypeAndUint  action stat
-func QueryUserActionStatValByTypeAndUint(wID string, t int, u string) (val int64) {
-	db.Select(&val, QueryUserActionStatValByTypeAndUintSQL, wID, t, u)
-	return val
+func QueryUserActionStatValByTypeAndUint(wID string, t int, u string) (stat *UserActionStat) {
+	db.Select(&stat, QueryUserActionStatValByTypeAndUintSQL, wID, t, u)
+	return stat
 }
 
 // CreateUserActionStat  create action stat

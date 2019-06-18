@@ -30,7 +30,8 @@ const (
 
 // time
 const (
-	OneMonth = 30 * 24 * 60 * 60
+	OneMonth = int64(30 * 24 * 60 * 60 * 1000)
+	OneWeek  = int64(7 * 24 * 60 * 60 * 1000)
 )
 
 // 小程序 授权
