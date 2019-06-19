@@ -184,7 +184,12 @@ func getNoteTimeListForWeek(c *gin.Context) {
 			onMonday,
 			weekEnd,
 		)
-		res.Data = times
+		weeks := make([]int, 0)
+		for _, v := range times {
+			t := time.Unix(v/1e3, 0)                //将其转换为秒,转换为日期
+			weeks = append(weeks, int(t.Weekday())) // 获取本周星期数
+		}
+		res.Data = removeRepByMap(weeks)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -201,7 +206,12 @@ func getNoteTimeListForMonth(c *gin.Context) {
 			req.CreateTime,
 			req.CreateTime+x.OneMonth,
 		)
-		res.Data = times
+		days := make([]int, 0)
+		for _, v := range times {
+			t := time.Unix(v/1e3, 0)     //将其转换为秒,转换为日期
+			days = append(days, t.Day()) // 获取时间当月的天数
+		}
+		res.Data = removeRepByMap(days)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -342,4 +352,17 @@ func updateContinuedNum(userID string, ts int64) {
 			UpdateTime: ts,
 		})
 	}
+}
+
+func removeRepByMap(slc []int) []int {
+	result := []int{}
+	tempMap := map[int]struct{}{} // 存放不重复主键
+	for _, e := range slc {
+		l := len(tempMap)
+		tempMap[e] = struct{}{}
+		if len(tempMap) != l { // 加入map后，map长度变化，则元素不重复
+			result = append(result, e)
+		}
+	}
+	return result
 }
