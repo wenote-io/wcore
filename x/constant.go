@@ -13,25 +13,27 @@ const (
 
 // Code
 const (
-	SuccessCode = 2000
-	// 用户不存在
+	SuccessCode           = 2000
 	UserNotFoundErrCode   = 1000
 	CreateNoteFailErrCode = 1001
 	CreateUserFailErrCode = 1002
+	CodeInvalidErrCode    = 1003
 )
 
 // msg
 const (
-	SuccessMsg         = "ok"
+	SuccessMsg         = "OK"
 	UserNotFoundErrMsg = "UserNotFound"
-	CreateNoteFail     = "CreateNoteFail"
-	CreateUserFail     = "CreateUserFail"
+	CreateNoteFailMsg  = "CreateNoteFail"
+	CreateUserFailMsg  = "CreateUserFail"
+	CodeInvalidMsg     = "CodeInvalid"
 )
 
 // time
 const (
 	OneMonth = int64(30 * 24 * 60 * 60 * 1000)
 	OneWeek  = int64(7 * 24 * 60 * 60 * 1000)
+	OneDay   = int64(1 * 24 * 60 * 60 * 1000)
 )
 
 // 小程序 授权

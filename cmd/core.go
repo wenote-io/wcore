@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"wcore/db"
@@ -16,6 +17,7 @@ import (
 // NoteReq core module
 type NoteReq struct {
 	UserID     string `json:"user_id"`
+	NoteID     string `json:"note_id"`
 	CreateTime int64  `json:"create_time"`
 	Mood       int    `json:"mood"` // 1:狂喜 2: 开心 3:还行 4:不爽 5:超烂
 	Desc       string `json:"desc"`
@@ -23,11 +25,38 @@ type NoteReq struct {
 	Offset     int    `json:"offset"`
 }
 
+// NoteRes core module
+type NoteRes struct {
+	UserID     string `json:"user_id"`
+	NoteID     string `json:"note_id"`
+	CreateTime int64  `json:"create_time"`
+	Mood       int    `json:"mood"` // 1:狂喜 2: 开心 3:还行 4:不爽 5:超烂
+	Desc       string `json:"desc"`
+}
+
 // BaseRes res module
 type BaseRes struct {
 	Code int         `json:"code"`
 	Msg  string      `json:"msg"`
 	Data interface{} `json:"data"`
+}
+
+func newNotesRes(notes []*db.WNote) []*NoteRes {
+	res := make([]*NoteRes, 0)
+	for _, v := range notes {
+		res = append(res, newNoteRes(v))
+	}
+	return res
+}
+
+func newNoteRes(note *db.WNote) *NoteRes {
+	return &NoteRes{
+		UserID:     note.WID,
+		NoteID:     note.NID,
+		Mood:       note.WMood,
+		Desc:       note.WDesc,
+		CreateTime: note.CreateTime,
+	}
 }
 
 func newBaseRes() *BaseRes {
@@ -40,13 +69,13 @@ func newBaseRes() *BaseRes {
 
 func newNoteReqByGET(c *gin.Context) *NoteReq {
 	req := &NoteReq{
-		UserID:     c.Query("user_id"),
-		CreateTime: c.GetInt64("create_time"),
-		Mood:       c.GetInt("mood"),
-		Desc:       c.Query("desc"),
+		UserID: c.Query("user_id"),
+		Desc:   c.Query("desc"),
 	}
 	req.Limit, _ = strconv.Atoi(c.DefaultQuery("limit", "0"))
 	req.Offset, _ = strconv.Atoi(c.DefaultQuery("offset", "0"))
+	req.Mood, _ = strconv.Atoi(c.DefaultQuery("mood", "0"))
+	req.CreateTime, _ = strconv.ParseInt(c.DefaultQuery("create_time", "0"), 10, 64)
 	return req
 }
 
@@ -56,7 +85,7 @@ func newNoteReqByPOST(c *gin.Context) *NoteReq {
 	return &note
 }
 
-var loginMap sync.Map
+var stat sync.Map
 var tok string
 var exp time.Duration
 
@@ -85,12 +114,12 @@ func deleteNote(c *gin.Context) {
 	if checkUser(req.UserID) {
 		if db.DelNote(&db.WNote{
 			WID:        req.UserID,
+			NID:        req.NoteID,
 			DeleteTime: ts,
 		}) != nil {
 			res.Code = x.CreateNoteFailErrCode
-			res.Msg = x.CreateNoteFail
+			res.Msg = x.CreateNoteFailMsg
 		}
-		go updateContinuedNum(req.UserID, ts, true)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -105,14 +134,14 @@ func updateNote(c *gin.Context) {
 	if checkUser(req.UserID) {
 		if db.UpdateNote(&db.WNote{
 			WID:        req.UserID,
+			NID:        req.NoteID,
 			WMood:      req.Mood,
 			WDesc:      req.Desc,
 			UpdateTime: ts,
 		}) != nil {
 			res.Code = x.CreateNoteFailErrCode
-			res.Msg = x.CreateNoteFail
+			res.Msg = x.CreateNoteFailMsg
 		}
-		go updateContinuedNum(req.UserID, ts, false)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -124,17 +153,19 @@ func addNote(c *gin.Context) {
 	req := newNoteReqByPOST(c)
 	res := newBaseRes()
 	ts := getNowTimeByMilli()
+	nID := generateUUID()
 	if checkUser(req.UserID) {
 		if db.CreateNote(&db.WNote{
 			WID:        req.UserID,
+			NID:        nID,
 			WMood:      req.Mood,
 			WDesc:      req.Desc,
 			CreateTime: ts,
 		}) != nil {
 			res.Code = x.CreateNoteFailErrCode
-			res.Msg = x.CreateNoteFail
+			res.Msg = x.CreateNoteFailMsg
 		}
-		go updateContinuedNum(req.UserID, ts, false)
+		go updateContinuedNum(req.UserID, ts)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -183,7 +214,7 @@ func getNoteList(c *gin.Context) {
 	res := newBaseRes()
 	if checkUser(req.UserID) {
 		notes := db.QueryNotesByWID(req.UserID, req.Limit, req.Offset)
-		res.Data = notes
+		res.Data = newNotesRes(notes)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -196,11 +227,12 @@ func getContinuedNum(c *gin.Context) {
 	req := newNoteReqByGET(c)
 	if checkUser(req.UserID) {
 		// 查询用户连续登录天数
-		res.Data = db.QueryUserActionStatValByTypeAndUint(
+		stat := db.QueryUserActionStatValByTypeAndUint(
 			req.UserID,
 			x.UserActStatTypeForContinueRecord,
 			x.UserActStatUintForContinueRecord,
 		)
+		res.Data = stat.ActVal
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -211,32 +243,45 @@ func getContinuedNum(c *gin.Context) {
 func login(c *gin.Context) {
 	res := newBaseRes()
 	code := c.Query("code")
-	loginRes, err := weapp.Login(x.AppID, x.Ssecret, code)
-	ts := getNowTimeByMilli()
-	if err != nil {
-		fmt.Printf("err:%s", err.Error())
+	if code == "" {
+		res.Msg = x.CodeInvalidMsg
+		res.Code = x.CodeInvalidErrCode
+		c.JSON(200, res)
+		return
 	}
+	ts := getNowTimeByMilli()
+	loginRes := weapp.LoginResponse{OpenID: "123"} //weapp.Login(x.AppID, x.Ssecret, code)
+	// if err != nil {
+	// 	fmt.Printf("err:%s\n", err.Error())
+	// 	res.Msg = x.CodeInvalidMsg
+	// 	res.Code = x.CodeInvalidErrCode
+	// 	c.JSON(200, res)
+	// 	return
+	// }
+	var wID string
+	var ok bool
 	//loginMap.Store(loginRes.OpenID, 1)
-	if wID, ok := checkUserIsLogin(loginRes.OpenID); ok {
+	if wID, ok = checkUserIsLogin(loginRes.OpenID); ok {
 		res.Data = wID
 	} else {
-		wID := generateUUID()
+		wID = generateUUID()
 		if db.CreateUser(db.User{
 			WID:        wID,
 			ExtID:      loginRes.OpenID,
 			WType:      1, // 微信用户
 			CreateTime: ts,
 		}) != nil {
-			res.Msg = x.CreateUserFail
+			res.Msg = x.CreateUserFailMsg
 			res.Code = x.CreateUserFailErrCode
 		} else {
-			go updateContinuedNum(wID, ts, false)
+			res.Data = wID
 		}
 	}
 	c.JSON(200, res)
 }
 func generateUUID() string {
-	return uuid.Must(uuid.NewV4()).String()
+	u := uuid.Must(uuid.NewV4()).String()
+	return strings.Replace(u, "-", "", -1)
 }
 
 func checkUser(userID string) bool {
@@ -271,14 +316,13 @@ func getWeekDay() int64 {
 	return weekStart.UnixNano() / 1e6
 }
 
-func updateContinuedNum(userID string, ts int64, isLess bool) {
+func updateContinuedNum(userID string, ts int64) {
 	stat := db.QueryUserActionStatValByTypeAndUint(
 		userID,
 		x.UserActStatTypeForContinueRecord,
 		x.UserActStatUintForContinueRecord,
 	)
-	switch {
-	case isLess == false && stat.WID == "":
+	if stat.WID == "" {
 		db.CreateUserActionStat(&db.UserActionStat{
 			WID:        userID,
 			ActType:    1,
@@ -286,23 +330,16 @@ func updateContinuedNum(userID string, ts int64, isLess bool) {
 			ActUnit:    x.UserActStatUintForContinueRecord,
 			CreateTime: ts,
 		})
-	case isLess == false && stat.WID != "":
+	} else {
+		if stat.UpdateTime+x.OneDay > ts {
+			return
+		}
 		db.UpdateUserActionStat(&db.UserActionStat{
 			WID:        userID,
 			ActType:    1,
 			ActVal:     stat.ActVal + int64(1),
 			ActUnit:    x.UserActStatUintForContinueRecord,
-			CreateTime: ts,
+			UpdateTime: ts,
 		})
-	case isLess == true && stat.WID != "":
-		db.UpdateUserActionStat(&db.UserActionStat{
-			WID:        userID,
-			ActType:    1,
-			ActVal:     int64(0),
-			ActUnit:    x.UserActStatUintForContinueRecord,
-			CreateTime: ts,
-		})
-	default:
-		return
 	}
 }

@@ -1,7 +1,9 @@
 package db
 
 import (
+	"fmt"
 	"log"
+
 	// mysql
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -21,10 +23,11 @@ type User struct {
 // WNote moudle
 type WNote struct {
 	ID         int    `db:"id"`
+	NID        string `db:"n_id"`
 	WID        string `db:"w_id"`
 	WMood      int    `db:"w_mood"`
 	WDesc      string `db:"w_desc"`
-	WAction    int    `db:"w_action"`
+	WAction    int    `db:"w_action_type"`
 	CreateTime int64  `db:"create_time"`
 	DeleteTime int64  `db:"delete_time"`
 	UpdateTime int64  `db:"update_time"`
@@ -48,7 +51,7 @@ var db *sqlx.DB
 // InitDB init tidb
 func InitDB() {
 	var err error
-	db, err = sqlx.Connect("mysql", "root:@(172.21.0.6:4000)/wcore")
+	db, err = sqlx.Connect("mysql", "root:12345678@(localhost:3306)/wcore")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -60,12 +63,13 @@ func CreateUser(user User) error {
 	defer func() {
 		if err := recover(); err != nil {
 			tx.Rollback()
+			fmt.Printf("CreateUser err:%s\n", err)
 		}
 	}()
 	res := tx.MustExec(CreateUserSQL, user.WID, user.ExtID, user.WType, user.CreateTime)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
-		log.Printf("CreateNote err:%s row:%d", err.Error(), row)
+		fmt.Printf("CreateUser err:%s row:%d\n", err.Error(), row)
 		return err
 	}
 	tx.Commit()
@@ -74,13 +78,15 @@ func CreateUser(user User) error {
 
 // QueryUserByWID id
 func QueryUserByWID(wID string) (user *User) {
-	db.Select(user, QueryUserByWIDSQL, wID)
+	user = &User{}
+	db.Get(user, QueryUserByWIDSQL, wID)
 	return user
 }
 
 // QueryUserByExtID id
 func QueryUserByExtID(oID string) (user *User) {
-	db.Select(user, QueryUserByExtIDSQL, oID)
+	user = &User{}
+	db.Get(user, QueryUserByExtIDSQL, oID)
 	return user
 }
 
@@ -89,10 +95,11 @@ func CreateNote(note *WNote) error {
 	tx := db.MustBegin()
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Printf("CreateNote err:%s\n", err)
 			tx.Rollback()
 		}
 	}()
-	res := tx.MustExec(CreateNoteSQL, note.WID, note.WMood, note.WDesc, note.WAction, note.CreateTime)
+	res := tx.MustExec(CreateNoteSQL, note.WID, note.NID, note.WMood, note.WDesc, note.WAction, note.CreateTime)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
 		log.Printf("CreateNote err:%s row:%d", err.Error(), row)
@@ -107,10 +114,11 @@ func DelNote(note *WNote) error {
 	tx := db.MustBegin()
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Printf("DelNote err:%s\n", err)
 			tx.Rollback()
 		}
 	}()
-	res := tx.MustExec(DELNoteSQL, note.DeleteTime, note.WID)
+	res := tx.MustExec(DELNoteSQL, note.DeleteTime, note.WID, note.NID)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
 		log.Printf("DelNote:%s row:%d", err.Error(), row)
@@ -125,10 +133,11 @@ func UpdateNote(note *WNote) error {
 	tx := db.MustBegin()
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Printf("UpdateNote err:%s\n", err)
 			tx.Rollback()
 		}
 	}()
-	res := tx.MustExec(UpdateNoteSQL, note.WID, note.WMood, note.WDesc, note.WAction, note.UpdateTime)
+	res := tx.MustExec(UpdateNoteSQL, note.WMood, note.WDesc, note.WAction, note.UpdateTime, note.WID, note.NID)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
 		log.Printf("UpdateNote:%s row:%d", err.Error(), row)
@@ -140,19 +149,22 @@ func UpdateNote(note *WNote) error {
 
 // QueryNotesByWID get notes
 func QueryNotesByWID(wID string, limit, offset int) (notes []*WNote) {
+	notes = make([]*WNote, 0)
 	db.Select(&notes, QueryNotesByIDSQL, wID, limit, offset)
 	return notes
 }
 
 // QueryNoteTimeByUserIDAndTimeRange time list
 func QueryNoteTimeByUserIDAndTimeRange(wID string, start, end int64) (times []int64) {
+	times = make([]int64, 0)
 	db.Select(&times, QueryNoteTimeByUserIDAndTimeRangeSQL, wID, start, end)
 	return times
 }
 
 // QueryUserActionStatValByTypeAndUint  action stat
 func QueryUserActionStatValByTypeAndUint(wID string, t int, u string) (stat *UserActionStat) {
-	db.Select(&stat, QueryUserActionStatValByTypeAndUintSQL, wID, t, u)
+	stat = &UserActionStat{}
+	db.Get(stat, QueryUserActionStatValByTypeAndUintSQL, wID, t, u)
 	return stat
 }
 
@@ -161,10 +173,16 @@ func CreateUserActionStat(stat *UserActionStat) {
 	tx := db.MustBegin()
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Printf("CreateUserActionStat err:%s\n", err)
 			tx.Rollback()
 		}
 	}()
-	tx.MustExec(CreateUserActionStatSQL, stat.WID, stat.ActType, stat.ActVal, stat.ActUnit, stat.CreateTime)
+	res := tx.MustExec(CreateUserActionStatSQL, stat.WID, stat.ActType, stat.ActVal, stat.ActUnit, stat.CreateTime)
+	if row, err := res.RowsAffected(); err != nil || row == 0 {
+		tx.Rollback()
+		log.Printf("CreateUserActionStat:%s row:%d", err.Error(), row)
+		return
+	}
 	tx.Commit()
 }
 
@@ -173,9 +191,15 @@ func UpdateUserActionStat(stat *UserActionStat) {
 	tx := db.MustBegin()
 	defer func() {
 		if err := recover(); err != nil {
+			fmt.Printf("UpdateUserActionStat err:%s\n", err)
 			tx.Rollback()
 		}
 	}()
-	tx.MustExec(UpdateUserActionStatSQL, stat.ActType, stat.ActVal, stat.ActUnit, stat.CreateTime, stat.WID)
+	res := tx.MustExec(UpdateUserActionStatSQL, stat.ActType, stat.ActVal, stat.ActUnit, stat.UpdateTime, stat.WID)
+	if row, err := res.RowsAffected(); err != nil || row == 0 {
+		tx.Rollback()
+		log.Printf("CreateUserActionStat:%s row:%d", err.Error(), row)
+		return
+	}
 	tx.Commit()
 }
