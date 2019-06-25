@@ -51,7 +51,7 @@ var db *sqlx.DB
 // InitDB init tidb
 func InitDB() {
 	var err error
-	db, err = sqlx.Connect("mysql", "root:12345678@(localhost:3306)/wcore")
+	db, err = sqlx.Connect("mysql", "root:@(172.21.0.6:4000)/wcore")
 	if err != nil {
 		log.Fatalln(err)
 	}
