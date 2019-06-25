@@ -98,6 +98,7 @@ func main() {
 	engine.GET("/we_note/note/list", getNoteList)
 	engine.GET("/we_note/note/month/times", getNoteTimeListForMonth)
 	engine.GET("/we_note/note/week/times", getNoteTimeListForWeek)
+	engine.GET("/we_note/note/total", getNoteTotalNum)
 	engine.POST("/we_note/note", addNote)
 	engine.PUT("/we_note/note", updateNote)
 	engine.DELETE("/we_note/note", deleteNote)
@@ -107,13 +108,26 @@ func main() {
 		fmt.Printf("ListenAndServe err:%s", err.Error())
 	}
 }
+
+func getNoteTotalNum(c *gin.Context) {
+	req := newNoteReqByGET(c)
+	res := newBaseRes()
+	if checkUser(req.UserID) {
+		res.Data = db.QueryTotalNoteNumByUserID(req.UserID)
+	} else {
+		res.Msg = x.UserNotFoundErrMsg
+		res.Code = x.UserNotFoundErrCode
+	}
+	c.JSON(200, res)
+}
+
 func deleteNote(c *gin.Context) {
 	req := newNoteReqByPOST(c)
 	res := newBaseRes()
 	ts := getNowTimeByMilli()
 	if checkUser(req.UserID) {
 		if db.DelNote(&db.WNote{
-			WID:        req.UserID,
+			//WID:        req.UserID,
 			NID:        req.NoteID,
 			DeleteTime: ts,
 		}) != nil {
@@ -152,20 +166,23 @@ func updateNote(c *gin.Context) {
 func addNote(c *gin.Context) {
 	req := newNoteReqByPOST(c)
 	res := newBaseRes()
-	ts := getNowTimeByMilli()
+	//ts := getNowTimeByMilli()
 	nID := generateUUID()
 	if checkUser(req.UserID) {
+		if req.CreateTime == 0 {
+			req.CreateTime = getNowTimeByMilli()
+		}
 		if db.CreateNote(&db.WNote{
 			WID:        req.UserID,
 			NID:        nID,
 			WMood:      req.Mood,
 			WDesc:      req.Desc,
-			CreateTime: ts,
+			CreateTime: req.CreateTime,
 		}) != nil {
 			res.Code = x.CreateNoteFailErrCode
 			res.Msg = x.CreateNoteFailMsg
 		}
-		go updateContinuedNum(req.UserID, ts)
+		go updateContinuedNum(req.UserID, req.CreateTime)
 	} else {
 		res.Msg = x.UserNotFoundErrMsg
 		res.Code = x.UserNotFoundErrCode
@@ -260,14 +277,15 @@ func login(c *gin.Context) {
 		return
 	}
 	ts := getNowTimeByMilli()
-	loginRes := weapp.LoginResponse{OpenID: "123"} //weapp.Login(x.AppID, x.Ssecret, code)
-	// if err != nil {
-	// 	fmt.Printf("err:%s\n", err.Error())
-	// 	res.Msg = x.CodeInvalidMsg
-	// 	res.Code = x.CodeInvalidErrCode
-	// 	c.JSON(200, res)
-	// 	return
-	// }
+	//loginRes := weapp.LoginResponse{OpenID: "123"}
+	loginRes, err := weapp.Login(x.AppID, x.Ssecret, code)
+	if err != nil {
+		fmt.Printf("err:%s\n", err.Error())
+		res.Msg = x.CodeInvalidMsg
+		res.Code = x.CodeInvalidErrCode
+		c.JSON(200, res)
+		return
+	}
 	var wID string
 	var ok bool
 	//loginMap.Store(loginRes.OpenID, 1)

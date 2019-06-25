@@ -118,7 +118,7 @@ func DelNote(note *WNote) error {
 			tx.Rollback()
 		}
 	}()
-	res := tx.MustExec(DELNoteSQL, note.DeleteTime, note.WID, note.NID)
+	res := tx.MustExec(DELNoteSQL, note.DeleteTime, note.NID)
 	if row, err := res.RowsAffected(); err != nil || row == 0 {
 		tx.Rollback()
 		log.Printf("DelNote:%s row:%d", err.Error(), row)
@@ -152,6 +152,12 @@ func QueryNotesByWID(wID string, limit, offset int) (notes []*WNote) {
 	notes = make([]*WNote, 0)
 	db.Select(&notes, QueryNotesByIDSQL, wID, limit, offset)
 	return notes
+}
+
+// QueryTotalNoteNumByUserID get total num
+func QueryTotalNoteNumByUserID(userID string) (num int) {
+	db.Get(&num, QueryTotalNoteNumByUserIDSQL, userID)
+	return num
 }
 
 // QueryNoteTimeByUserIDAndTimeRange time list

@@ -7,10 +7,12 @@ const (
 	QueryUserByWIDSQL = "SELECT * FROM w_user WHERE w_id=? AND delete_time=0"
 	// QueryUserByExtIDSQL sql
 	QueryUserByExtIDSQL = "SELECT * FROM w_user WHERE ext_id=? AND delete_time=0"
+	// QueryTotalNoteNumByUserIDSQL sql
+	QueryTotalNoteNumByUserIDSQL = "SELECT count(1) FROM w_user WHERE w_id=? AND delete_time=0"
 	// CreateNoteSQL sql
 	CreateNoteSQL = "INSERT INTO w_note (w_id,n_id,w_mood, w_desc, w_action_type,create_time) VALUES (?, ?, ?, ?, ?, ?)"
 	// DELNoteSQL sql
-	DELNoteSQL = "UPDATE  w_note SET delete_time=? WHERE w_id=? AND n_id=?"
+	DELNoteSQL = "UPDATE  w_note SET delete_time=? WHERE n_id=?"
 	// UpdateNoteSQL sql
 	UpdateNoteSQL = "UPDATE  w_note SET w_mood=?, w_desc=?, w_action_type=?,update_time=? WHERE delete_time=0 AND w_id=? AND n_id=?"
 	// QueryNotesByIDSQL sql
