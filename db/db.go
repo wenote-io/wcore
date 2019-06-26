@@ -160,6 +160,13 @@ func QueryTotalNoteNumByUserID(userID string) (num int) {
 	return num
 }
 
+// QueryNotesByOneDay get total num
+func QueryNotesByOneDay(userID string, start, end int64, limit, offset int) (notes []*WNote) {
+	notes = make([]*WNote, 0)
+	db.Select(&notes, QueryNotesByOneDaySQL, userID, start, end, limit, offset)
+	return notes
+}
+
 // QueryNoteTimeByUserIDAndTimeRange time list
 func QueryNoteTimeByUserIDAndTimeRange(wID string, start, end int64) (times []int64) {
 	times = make([]int64, 0)

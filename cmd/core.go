@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -76,12 +77,16 @@ func newNoteReqByGET(c *gin.Context) *NoteReq {
 	req.Offset, _ = strconv.Atoi(c.DefaultQuery("offset", "0"))
 	req.Mood, _ = strconv.Atoi(c.DefaultQuery("mood", "0"))
 	req.CreateTime, _ = strconv.ParseInt(c.DefaultQuery("create_time", "0"), 10, 64)
+	data, _ := json.Marshal(req)
+	fmt.Printf("get param:[%s]\n", string(data))
 	return req
 }
 
 func newNoteReqByPOST(c *gin.Context) *NoteReq {
 	var note NoteReq
 	_ = c.BindJSON(&note)
+	data, _ := json.Marshal(note)
+	fmt.Printf("post param:[%s]\n", string(data))
 	return &note
 }
 
@@ -96,6 +101,7 @@ func main() {
 	engine.GET("/we_note/user/login", login)
 	engine.GET("/we_note/note/continued_num", getContinuedNum)
 	engine.GET("/we_note/note/list", getNoteList)
+	engine.GET("/we_note/note/day/list", getNoteListByDay)
 	engine.GET("/we_note/note/month/times", getNoteTimeListForMonth)
 	engine.GET("/we_note/note/week/times", getNoteTimeListForWeek)
 	engine.GET("/we_note/note/total", getNoteTotalNum)
@@ -107,6 +113,25 @@ func main() {
 	if err != nil {
 		fmt.Printf("ListenAndServe err:%s", err.Error())
 	}
+}
+
+func getNoteListByDay(c *gin.Context) {
+	req := newNoteReqByGET(c)
+	res := newBaseRes()
+	if req.CreateTime == 0 {
+		req.CreateTime = getCurrDay(time.Now())
+	} else {
+		req.CreateTime = getCurrDay(time.Unix(req.CreateTime, 0))
+	}
+	fmt.Printf("getNoteListByDay s:%d,e:%d\n", req.CreateTime, req.CreateTime+x.OneDay)
+	if checkUser(req.UserID) {
+		notes := db.QueryNotesByOneDay(req.UserID, req.CreateTime, req.CreateTime+x.OneDay, req.Limit, req.Offset)
+		res.Data = newNotesRes(notes)
+	} else {
+		res.Msg = x.UserNotFoundErrMsg
+		res.Code = x.UserNotFoundErrCode
+	}
+	c.JSON(200, res)
 }
 
 func getNoteTotalNum(c *gin.Context) {
@@ -342,6 +367,11 @@ func getWeekDay() int64 {
 	}
 	weekStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local).AddDate(0, 0, offset)
 	return weekStart.UnixNano() / 1e6
+}
+
+func getCurrDay(t time.Time) int64 {
+	now := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	return now.UnixNano() / 1e6
 }
 
 func updateContinuedNum(userID string, ts int64) {

@@ -8,7 +8,7 @@ const (
 	// QueryUserByExtIDSQL sql
 	QueryUserByExtIDSQL = "SELECT * FROM w_user WHERE ext_id=? AND delete_time=0"
 	// QueryTotalNoteNumByUserIDSQL sql
-	QueryTotalNoteNumByUserIDSQL = "SELECT count(1) FROM w_user WHERE w_id=? AND delete_time=0"
+	QueryTotalNoteNumByUserIDSQL = "SELECT count(1) FROM w_note WHERE w_id=? AND delete_time=0"
 	// CreateNoteSQL sql
 	CreateNoteSQL = "INSERT INTO w_note (w_id,n_id,w_mood, w_desc, w_action_type,create_time) VALUES (?, ?, ?, ?, ?, ?)"
 	// DELNoteSQL sql
@@ -17,6 +17,8 @@ const (
 	UpdateNoteSQL = "UPDATE  w_note SET w_mood=?, w_desc=?, w_action_type=?,update_time=? WHERE delete_time=0 AND w_id=? AND n_id=?"
 	// QueryNotesByIDSQL sql
 	QueryNotesByIDSQL = "SELECT * FROM w_note WHERE w_id=? AND delete_time=0 ORDER BY create_time DESC LIMIT ? OFFSET ?"
+	// QueryNotesByOneDaySQL sql
+	QueryNotesByOneDaySQL = "SELECT * FROM w_note WHERE w_id=? AND delete_time=0 AND create_time BETWEEN ? AND ? ORDER BY create_time DESC LIMIT ? OFFSET ?"
 	// QueryNoteTimeByUserIDAndTimeRangeSQL sql
 	QueryNoteTimeByUserIDAndTimeRangeSQL = "SELECT create_time FROM w_note WHERE  delete_time=0 AND w_id=? AND create_time BETWEEN ? AND ?"
 	// QueryUserActionStatValByTypeAndUintSQL  sql
