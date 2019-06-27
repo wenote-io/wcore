@@ -119,9 +119,7 @@ func getNoteListByDay(c *gin.Context) {
 	req := newNoteReqByGET(c)
 	res := newBaseRes()
 	if req.CreateTime == 0 {
-		req.CreateTime = getCurrDay(time.Now())
-	} else {
-		req.CreateTime = getCurrDay(time.Unix(req.CreateTime, 0))
+		req.CreateTime = getCurrDay()
 	}
 	fmt.Printf("getNoteListByDay s:%d,e:%d\n", req.CreateTime, req.CreateTime+x.OneDay)
 	if checkUser(req.UserID) {
@@ -369,7 +367,8 @@ func getWeekDay() int64 {
 	return weekStart.UnixNano() / 1e6
 }
 
-func getCurrDay(t time.Time) int64 {
+func getCurrDay() int64 {
+	t := time.Now()
 	now := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	return now.UnixNano() / 1e6
 }
