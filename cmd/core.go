@@ -380,17 +380,19 @@ func updateContinuedNum(userID string, ts int64) {
 		x.UserActStatUintForContinueRecord,
 	)
 	if stat.WID == "" {
+		// 若记录不存在,则初始化一个连续记录天数
 		db.CreateUserActionStat(&db.UserActionStat{
 			WID:        userID,
 			ActType:    1,
-			ActVal:     int64(0),
+			ActVal:     int64(1),
 			ActUnit:    x.UserActStatUintForContinueRecord,
 			CreateTime: ts,
 		})
-	} else {
-		if stat.UpdateTime+x.OneDay > ts {
-			return
-		}
+		return
+	}
+	dt := getCurrDay() - getByZeroMorningTs(stat.UpdateTime)
+	switch {
+	case dt == x.OneDay: // 若记录数在上次记录后的一天之内则增加记录值
 		db.UpdateUserActionStat(&db.UserActionStat{
 			WID:        userID,
 			ActType:    1,
@@ -398,7 +400,20 @@ func updateContinuedNum(userID string, ts int64) {
 			ActUnit:    x.UserActStatUintForContinueRecord,
 			UpdateTime: ts,
 		})
+	case dt > x.OneDay:
+		db.UpdateUserActionStat(&db.UserActionStat{
+			WID:        userID,
+			ActType:    1,
+			ActVal:     int64(1),
+			ActUnit:    x.UserActStatUintForContinueRecord,
+			UpdateTime: ts,
+		})
+	default:
 	}
+}
+
+func getByZeroMorningTs(ts int64) int64 {
+	return ts - (ts+8*3600*1000)%x.OneDay
 }
 
 func removeRepByMap(slc []int) []int {
