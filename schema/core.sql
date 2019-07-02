@@ -1,7 +1,6 @@
 CREATE DATABASE wcore
 USE wcore
-CREATE TABLE w_user
-(
+CREATE TABLE w_user(
     id INT NOT NULL PRIMARY KEY auto_increment,  -- primary key column
     w_id  VARCHAR(32) NOT NULL unique,
     ext_id VARCHAR(32) NOT NULL,
@@ -11,8 +10,7 @@ CREATE TABLE w_user
     update_time BIGINT NOT NULL DEFAULT 0
 );  
 
-CREATE TABLE user_action_stat
-(
+CREATE TABLE user_action_stat(
     id INT NOT NULL PRIMARY KEY auto_increment, -- primary key column
     w_id VARCHAR(32) NOT NULL ,
     act_type INT NOT NULL DEFAULT 0,
@@ -23,8 +21,7 @@ CREATE TABLE user_action_stat
     update_time BIGINT NOT NULL DEFAULT 0
 );
 
-CREATE TABLE w_note
-(
+CREATE TABLE w_note(
     id INT NOT NULL PRIMARY KEY auto_increment, -- primary key column
     w_id VARCHAR(32) NOT NULL ,
     n_id VARCHAR(32) NOT NULL ,
