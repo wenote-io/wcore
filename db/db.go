@@ -8,19 +8,24 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// DB Connect
-var db *sqlx.DB
+type dBClient struct {
+	db *sqlx.DB
+}
+
+// DBCtl 数据库操作客户端
+var DBCtl *dBClient
 
 // InitDB init tidb
 func InitDB() {
+	DBCtl = &dBClient{}
 	var err error
-	db, err = sqlx.Connect("mysql", "root:@(172.21.0.6:4000)/wcore")
+	DBCtl.db, err = sqlx.Connect("mysql", "root:@(172.21.0.6:4000)/wcore")
 	if err != nil {
 		log.Fatalln(err)
 	}
 }
 
 // GetDB xs
-func GetDB() *sqlx.DB {
-	return db
+func (me *dBClient) GetDB() *sqlx.DB {
+	return me.db
 }
