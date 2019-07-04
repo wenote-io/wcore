@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"wcore/module/dao"
+	"wcore/db"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,7 +54,7 @@ func NewNoteReqByPOST(c *gin.Context) *NoteReq {
 }
 
 // NewNotesRes 创建结果集
-func NewNotesRes(notes []*dao.WNote) []*NoteRes {
+func NewNotesRes(notes []*db.WNote) []*NoteRes {
 	res := make([]*NoteRes, 0)
 	for _, v := range notes {
 		res = append(res, NewNoteRes(v))
@@ -63,7 +63,7 @@ func NewNotesRes(notes []*dao.WNote) []*NoteRes {
 }
 
 // NewNoteRes 创建结果
-func NewNoteRes(note *dao.WNote) *NoteRes {
+func NewNoteRes(note *db.WNote) *NoteRes {
 	return &NoteRes{
 		UserID:     note.WID,
 		NoteID:     note.NID,

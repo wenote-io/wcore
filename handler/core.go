@@ -1,18 +1,19 @@
-package api
+package handler
 
 import (
 	"fmt"
 	"time"
-	"wcore/module/dao"
-	"wcore/module/view"
+	"wcore/dao"
+	"wcore/db"
+	"wcore/view"
 	"wcore/x"
 
 	"github.com/gin-gonic/gin"
 	"github.com/medivhzhan/weapp"
 )
 
-// InitHandle 初始化handler
-func InitHandle(engine *gin.Engine) {
+// InitHandler 初始化handler
+func InitHandler(engine *gin.Engine) {
 	engine.GET("/we_note/user/login", login)
 	engine.GET("/we_note/note/continued_num", getContinuedNum)
 	engine.GET("/we_note/note/list", getNoteList)
@@ -62,7 +63,7 @@ func deleteNote(c *gin.Context) {
 	res := x.NewBaseRes()
 	ts := x.GetNowTimeByMilli()
 	if dao.CheckUser(req.UserID) {
-		if dao.DelNote(&dao.WNote{
+		if dao.DelNote(&db.WNote{
 			//WID:        req.UserID,
 			NID:        req.NoteID,
 			DeleteTime: ts,
@@ -83,7 +84,7 @@ func updateNote(c *gin.Context) {
 	res := x.NewBaseRes()
 	ts := x.GetNowTimeByMilli()
 	if dao.CheckUser(req.UserID) {
-		if dao.UpdateNote(&dao.WNote{
+		if dao.UpdateNote(&db.WNote{
 			WID:        req.UserID,
 			NID:        req.NoteID,
 			WMood:      req.Mood,
@@ -110,7 +111,7 @@ func addNote(c *gin.Context) {
 		if req.CreateTime == 0 {
 			req.CreateTime = x.GetNowTimeByMilli()
 		}
-		if dao.CreateNote(&dao.WNote{
+		if dao.CreateNote(&db.WNote{
 			WID:        req.UserID,
 			NID:        nID,
 			WMood:      req.Mood,
@@ -237,7 +238,7 @@ func login(c *gin.Context) {
 		res.Data = wID
 	} else {
 		wID = x.GenerateUUID()
-		if dao.CreateUser(dao.User{
+		if dao.CreateUser(db.User{
 			WID:        wID,
 			ExtID:      loginRes.OpenID,
 			WType:      1, // 微信用户
